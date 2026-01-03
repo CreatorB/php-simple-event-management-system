@@ -9,7 +9,6 @@ if (isset($_SESSION['uid'])) {
 if (isset($_POST['daftar'])) {
     $nama = mysqli_real_escape_string($conn, $_POST['nama']);
     $nohp = mysqli_real_escape_string($conn, $_POST['nohp']);
-    $pass = $_POST['password'];
     $email = mysqli_real_escape_string($conn, $_POST['email']);
     $alamat = mysqli_real_escape_string($conn, $_POST['alamat']);
     $lembaga = mysqli_real_escape_string($conn, $_POST['lembaga']);
@@ -18,8 +17,8 @@ if (isset($_POST['daftar'])) {
     if(mysqli_num_rows($cek) > 0){
         $error = "Phone number already registered.";
     } else {
-        $q = "INSERT INTO users (nama, nohp, password, email, alamat, lembaga, role)
-              VALUES ('$nama', '$nohp', '$pass', '$email', '$alamat', '$lembaga', 'user')";
+        $q = "INSERT INTO users (nama, nohp, email, alamat, lembaga, role)
+              VALUES ('$nama', '$nohp', '$email', '$alamat', '$lembaga', 'user')";
 
         if(mysqli_query($conn, $q)){
             echo "<script>alert('Registration successful! Please login.'); window.location='index.php';</script>";
@@ -71,11 +70,6 @@ if (isset($_POST['daftar'])) {
                 <div class="mb-3">
                     <label class="form-label">Phone Number (For Login)</label>
                     <input type="number" name="nohp" class="form-control form-control-lg" required placeholder="e.g. 08123456789">
-                </div>
-
-                <div class="mb-3">
-                    <label class="form-label">Password</label>
-                    <input type="password" name="password" class="form-control form-control-lg" required placeholder="Create password">
                 </div>
 
                 <div class="row">

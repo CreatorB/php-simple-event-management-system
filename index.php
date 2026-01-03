@@ -10,11 +10,10 @@ if (isset($_SESSION['uid'])) {
     exit();
 }
 
-if (isset($_POST['login'])) {
+if (isset($_POST['nohp']) && !empty($_POST['nohp'])) {
     $nohp = mysqli_real_escape_string($conn, $_POST['nohp']);
-    $pass = $_POST['password'];
 
-    $q = mysqli_query($conn, "SELECT * FROM users WHERE nohp='$nohp' AND password='$pass'");
+    $q = mysqli_query($conn, "SELECT * FROM users WHERE nohp='$nohp'");
 
     if(mysqli_num_rows($q) > 0){
         $d = mysqli_fetch_assoc($q);
@@ -22,6 +21,7 @@ if (isset($_POST['login'])) {
         $_SESSION['uid']  = $d['id'];
         $_SESSION['role'] = $d['role'];
         $_SESSION['nama'] = $d['nama'];
+        $_SESSION['nohp'] = $d['nohp'];
 
         if (isset($_SESSION['redirect_after_login'])) {
             $url = $_SESSION['redirect_after_login'];
@@ -33,7 +33,7 @@ if (isset($_POST['login'])) {
         }
         exit();
     } else {
-        $error = "Invalid phone number or password!";
+        $error = "Phone number not registered!";
     }
 }
 ?>
@@ -80,8 +80,8 @@ if (isset($_POST['login'])) {
         <div class="card shadow login-card mx-auto p-4">
             <div class="card-body">
                 <div class="login-header">
-                    <h3 class="fw-bold text-primary">Event Attendance</h3>
-                    <p class="text-muted">Please login with your phone number</p>
+                    <h3 class="fw-bold text-primary">Daurah Syariyyah ke-5</h3>
+                    <p class="text-muted">Silahkan masukan nomor hp Antum untuk absen</p>
                 </div>
 
                 <?php if(isset($error)): ?>
@@ -91,25 +91,20 @@ if (isset($_POST['login'])) {
                 <?php endif; ?>
 
                 <form method="POST">
-                    <div class="mb-3">
-                        <label class="form-label fw-bold small">Phone Number</label>
+                    <div class="mb-4">
+                        <label class="form-label fw-bold small">Nomer Handphone</label>
                         <input type="number" name="nohp" class="form-control form-control-lg" placeholder="e.g. 0812..." required autofocus>
                     </div>
 
-                    <div class="mb-4">
-                        <label class="form-label fw-bold small">Password</label>
-                        <input type="password" name="password" class="form-control form-control-lg" placeholder="Enter password" required>
-                    </div>
-
                     <div class="d-grid">
-                        <button type="submit" name="login" class="btn btn-primary btn-login text-white">LOGIN</button>
+                        <button type="submit" class="btn btn-primary btn-login text-white">MASUK</button>
                     </div>
                 </form>
 
-                <div class="text-center mt-4">
+                <!-- <div class="text-center mt-4">
                     <p class="small text-muted mb-1">Not registered yet?</p>
                     <a href="register.php" class="fw-bold text-decoration-none">Create New Account</a>
-                </div>
+                </div> -->
             </div>
         </div>
     </div>
