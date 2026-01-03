@@ -80,7 +80,7 @@ if (isset($_POST['nohp']) && !empty($_POST['nohp'])) {
         <div class="card shadow login-card mx-auto p-4">
             <div class="card-body">
                 <div class="login-header">
-                    <h3 class="fw-bold text-primary">Daurah Syariyyah ke-5</h3>
+                    <h3 class="fw-bold text-primary">Daurah Syariyyah</h3>
                     <p class="text-muted">Silahkan masukan nomor hp Antum untuk absen</p>
                 </div>
 
