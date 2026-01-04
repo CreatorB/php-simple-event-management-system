@@ -33,7 +33,7 @@ if (isset($_POST['nohp']) && !empty($_POST['nohp'])) {
         }
         exit();
     } else {
-        $error = "Phone number not registered!";
+        $error = "Nomor HP tidak terdaftar!";
     }
 }
 ?>
