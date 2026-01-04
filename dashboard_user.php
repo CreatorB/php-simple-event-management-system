@@ -6,6 +6,13 @@ if(!isset($_SESSION['uid']) || $_SESSION['role'] != 'user') {
     exit();
 }
 
+function tanggal_indo($tanggal) {
+    $hari = ['Minggu','Senin','Selasa','Rabu','Kamis','Jumat','Sabtu'];
+    $bulan = ['','Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
+    $t = strtotime($tanggal);
+    return $hari[date('w', $t)] . ', ' . date('d', $t) . ' ' . $bulan[(int)date('m', $t)] . ' ' . date('Y', $t);
+}
+
 $uid = $_SESSION['uid'];
 $now_time = date('H:i:s');
 $today = date('Y-m-d');
@@ -33,9 +40,10 @@ if(isset($_POST['hadir']) && isset($_POST['session_id']) && isset($_POST['event_
 }
 
 $q_active_session = mysqli_query($conn, "
-    SELECT s.*, e.nama_event, e.id as event_id
+    SELECT s.*, e.nama_event, e.id as event_id, e.tanggal
     FROM event_sessions s
     JOIN events e ON s.event_id = e.id
+    JOIN event_registrations r ON r.event_id = e.id AND r.user_id = '$uid'
     WHERE e.tanggal = '$today'
     AND '$now_time' BETWEEN s.jam_mulai AND s.jam_selesai
     LIMIT 1
@@ -43,12 +51,13 @@ $q_active_session = mysqli_query($conn, "
 $active_session = mysqli_fetch_assoc($q_active_session);
 
 $q_next_session = mysqli_query($conn, "
-    SELECT s.*, e.nama_event
+    SELECT s.*, e.nama_event, e.tanggal, e.id as event_id
     FROM event_sessions s
     JOIN events e ON s.event_id = e.id
-    WHERE e.tanggal = '$today'
-    AND s.jam_mulai > '$now_time'
-    ORDER BY s.jam_mulai ASC
+    JOIN event_registrations r ON r.event_id = e.id AND r.user_id = '$uid'
+    WHERE (e.tanggal = '$today' AND s.jam_mulai > '$now_time')
+       OR (e.tanggal > '$today')
+    ORDER BY e.tanggal ASC, s.jam_mulai ASC
     LIMIT 1
 ");
 $next_session = mysqli_fetch_assoc($q_next_session);
@@ -123,6 +132,9 @@ if($active_session){
                     </span>
                 </div>
                 <h3 class="fw-bold text-primary mb-2"><?= $active_session['nama_event'] ?></h3>
+                <p class="text-muted mb-1">
+                    <i class="fa fa-calendar me-1"></i><?= tanggal_indo($active_session['tanggal']) ?>
+                </p>
                 <h4 class="text-dark mb-1"><?= $active_session['nama_sesi'] ?></h4>
                 <p class="text-muted mb-4">
                     <i class="fa fa-clock me-1"></i>
@@ -152,6 +164,9 @@ if($active_session){
                     </span>
                 </div>
                 <h3 class="fw-bold text-primary mb-2"><?= $next_session['nama_event'] ?></h3>
+                <p class="text-muted mb-1">
+                    <i class="fa fa-calendar me-1"></i><?= tanggal_indo($next_session['tanggal']) ?>
+                </p>
                 <h4 class="fw-bold text-dark mb-2"><?= $next_session['nama_sesi'] ?></h4>
                 <p class="text-muted mb-3">
                     Dimulai pukul <strong><?= date('H:i', strtotime($next_session['jam_mulai'])) ?> WIB</strong>

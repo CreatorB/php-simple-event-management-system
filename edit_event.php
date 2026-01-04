@@ -1,8 +1,16 @@
-<?php 
+<?php
 include 'config.php';
 if($_SESSION['role'] != 'admin') header("Location: index.php");
 
 $id_event = $_GET['id'] ?? 0;
+
+$query_users = mysqli_query($conn, "SELECT id, nama, nohp, lembaga FROM users WHERE role='user' ORDER BY nama ASC");
+
+$invited_users = [];
+$q_invited = mysqli_query($conn, "SELECT user_id FROM event_registrations WHERE event_id='$id_event'");
+while($inv = mysqli_fetch_assoc($q_invited)){
+    $invited_users[] = $inv['user_id'];
+}
 
 // --- PROSES HAPUS SESI ---
 if(isset($_GET['hapus_sesi'])){
@@ -35,21 +43,28 @@ if(isset($_POST['update_event'])){
 
     for($i=0; $i < count($sesi_nama); $i++){
         if(!empty($sesi_nama[$i])){
-            $sid   = $sesi_id[$i]; // ID Sesi (bisa kosong atau ada isinya)
+            $sid   = $sesi_id[$i];
             $nm    = mysqli_real_escape_string($conn, $sesi_nama[$i]);
             $start = $jam_mulai[$i];
             $end   = $jam_selesai[$i];
 
             if(!empty($sid)){
-                // Kalo ID ada, berarti UPDATE data lama
                 mysqli_query($conn, "UPDATE event_sessions SET nama_sesi='$nm', jam_mulai='$start', jam_selesai='$end' WHERE id='$sid'");
             } else {
-                // Kalo ID kosong, berarti INSERT data baru
                 mysqli_query($conn, "INSERT INTO event_sessions (event_id, nama_sesi, jam_mulai, jam_selesai) VALUES ('$id_event', '$nm', '$start', '$end')");
             }
         }
     }
-    
+
+    mysqli_query($conn, "DELETE FROM event_registrations WHERE event_id='$id_event'");
+
+    if(isset($_POST['invited_users'])){
+        $selected_users = $_POST['invited_users'];
+        foreach($selected_users as $uid){
+            mysqli_query($conn, "INSERT INTO event_registrations (event_id, user_id, status) VALUES ('$id_event', '$uid', 'pending')");
+        }
+    }
+
     echo "<script>alert('Perubahan Berhasil Disimpan!'); window.location='dashboard_admin.php';</script>";
 }
 
@@ -64,6 +79,14 @@ if(!$data) die("Event tidak ditemukan.");
 <head>
     <title>Edit Event</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    <style>
+        .user-scroll-box {
+            max-height: 300px;
+            overflow-y: auto;
+            border: 1px solid #dee2e6;
+            background: #fff;
+        }
+    </style>
 </head>
 <body class="bg-light">
 <div class="container mt-5 mb-5" style="max-width: 800px;">
@@ -130,7 +153,55 @@ if(!$data) die("Event tidak ditemukan.");
                 </table>
                 
                 <button type="button" class="btn btn-success btn-sm mb-3" onclick="tambahSesi()">+ Tambah Sesi Baru</button>
-                
+
+                <hr class="my-4">
+
+                <h5 class="mb-3 text-primary">Undangan Peserta (RSVP)</h5>
+                <p class="text-muted small">Centang peserta yang akan diundang ke event ini.</p>
+
+                <div class="card bg-light border-0">
+                    <div class="card-header bg-secondary text-white d-flex justify-content-between align-items-center">
+                        <span>Daftar User</span>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="checkAll">
+                            <label class="form-check-label fw-bold text-white" for="checkAll" style="cursor:pointer">
+                                Pilih Semua
+                            </label>
+                        </div>
+                    </div>
+                    <div class="user-scroll-box p-0">
+                        <table class="table table-hover table-striped mb-0">
+                            <thead class="sticky-top bg-light">
+                                <tr>
+                                    <th width="40" class="text-center">#</th>
+                                    <th>Nama Peserta</th>
+                                    <th>Lembaga</th>
+                                    <th>No HP</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <?php if(mysqli_num_rows($query_users) > 0): ?>
+                                    <?php while($u = mysqli_fetch_assoc($query_users)): ?>
+                                    <tr>
+                                        <td class="text-center">
+                                            <input class="form-check-input user-checkbox" type="checkbox" name="invited_users[]" value="<?= $u['id'] ?>" <?= in_array($u['id'], $invited_users) ? 'checked' : '' ?>>
+                                        </td>
+                                        <td><?= $u['nama'] ?></td>
+                                        <td class="small text-muted"><?= $u['lembaga'] ?></td>
+                                        <td class="small text-muted"><?= $u['nohp'] ?></td>
+                                    </tr>
+                                    <?php endwhile; ?>
+                                <?php else: ?>
+                                    <tr><td colspan="4" class="text-center text-muted p-4">Belum ada data user.</td></tr>
+                                <?php endif; ?>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="card-footer text-muted small">
+                        * User yang dicentang akan melihat info event di dashboard mereka.
+                    </div>
+                </div>
+
                 <div class="d-grid gap-2 mt-4">
                     <button type="submit" name="update_event" class="btn btn-primary btn-lg">Simpan Perubahan</button>
                     <a href="dashboard_admin.php" class="btn btn-secondary">Batal</a>
@@ -153,10 +224,16 @@ if(!$data) die("Event tidak ditemukan.");
         document.getElementById('sesiContainer').insertAdjacentHTML('beforeend', row);
     }
 
-    // Fungsi hapus baris yang baru ditambahkan (belum disimpan ke DB)
     function hapusBarisJS(btn){
         btn.closest('tr').remove();
     }
+
+    document.getElementById('checkAll').addEventListener('change', function() {
+        var checkboxes = document.querySelectorAll('.user-checkbox');
+        for (var checkbox of checkboxes) {
+            checkbox.checked = this.checked;
+        }
+    });
 </script>
 </body>
 </html>
