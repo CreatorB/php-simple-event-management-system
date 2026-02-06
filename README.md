@@ -226,6 +226,13 @@ CREATE TABLE events (
     qr_mode ENUM('static', 'dynamic') DEFAULT 'static'
 );
 
+//update certificate
+ALTER TABLE `events` 
+ADD COLUMN `cert_template` VARCHAR(255) NULL,
+ADD COLUMN `cert_font` VARCHAR(255) NULL,
+ADD COLUMN `cert_font_size` INT DEFAULT 30,
+ADD COLUMN `cert_font_color` VARCHAR(20) DEFAULT '#000000';
+
 CREATE TABLE event_sessions (
     id INT AUTO_INCREMENT PRIMARY KEY,
     event_id INT NOT NULL,

@@ -1,6 +1,7 @@
 <?php
 include 'config.php';
-if($_SESSION['role'] != 'admin') header("Location: index.php");
+if ($_SESSION['role'] != 'admin')
+    header("Location: index.php");
 
 $id_event = $_GET['id'] ?? 0;
 
@@ -8,16 +9,16 @@ $query_users = mysqli_query($conn, "SELECT id, nama, nohp, lembaga FROM users WH
 
 $invited_users = [];
 $q_invited = mysqli_query($conn, "SELECT user_id FROM event_registrations WHERE event_id='$id_event'");
-while($inv = mysqli_fetch_assoc($q_invited)){
+while ($inv = mysqli_fetch_assoc($q_invited)) {
     $invited_users[] = $inv['user_id'];
 }
 
 // --- PROSES HAPUS SESI ---
-if(isset($_GET['hapus_sesi'])){
+if (isset($_GET['hapus_sesi'])) {
     $id_sesi = $_GET['hapus_sesi'];
     // Cek apakah ada data absen di sesi ini?
     $cek = mysqli_query($conn, "SELECT * FROM attendance WHERE session_id='$id_sesi'");
-    if(mysqli_num_rows($cek) > 0){
+    if (mysqli_num_rows($cek) > 0) {
         echo "<script>alert('Gagal! Sesi ini sudah ada data absensi pesertanya. Hapus data absen dulu jika ingin menghapus sesi ini.'); window.location='edit_event.php?id=$id_event';</script>";
     } else {
         mysqli_query($conn, "DELETE FROM event_sessions WHERE id='$id_sesi'");
@@ -27,28 +28,66 @@ if(isset($_GET['hapus_sesi'])){
 }
 
 // --- PROSES UPDATE EVENT & SESI ---
-if(isset($_POST['update_event'])){
+if (isset($_POST['update_event'])) {
     $nama = mysqli_real_escape_string($conn, $_POST['nama_event']);
-    $tgl  = $_POST['tanggal'];
+    $tgl = $_POST['tanggal'];
     $mode = $_POST['qr_mode'];
+    $cert_size = $_POST['cert_font_size'];
+    $cert_color = $_POST['cert_font_color'];
+
+    // Upload Config
+    $upload_dir = 'uploads/certificates/';
+    if (!is_dir($upload_dir)) {
+        mkdir($upload_dir, 0777, true);
+    }
+
+    // Updates for files are conditional
+    $file_update_query = "";
+
+    // Handle Template Upload
+    if (isset($_FILES['cert_template']) && $_FILES['cert_template']['error'] == 0) {
+        $ext = pathinfo($_FILES['cert_template']['name'], PATHINFO_EXTENSION);
+        $new_name = 'tmpl_' . time() . '.' . $ext;
+        if (move_uploaded_file($_FILES['cert_template']['tmp_name'], $upload_dir . $new_name)) {
+            $file_update_query .= ", cert_template='" . $upload_dir . $new_name . "'";
+        }
+    }
+
+    // Handle Font Upload
+    if (isset($_FILES['cert_font']) && $_FILES['cert_font']['error'] == 0) {
+        $ext = pathinfo($_FILES['cert_font']['name'], PATHINFO_EXTENSION);
+        $new_name = 'font_' . time() . '.' . $ext;
+        if (move_uploaded_file($_FILES['cert_font']['tmp_name'], $upload_dir . $new_name)) {
+            $file_update_query .= ", cert_font='" . $upload_dir . $new_name . "'";
+        }
+    }
 
     // 1. Update Data Event Utama
-    mysqli_query($conn, "UPDATE events SET nama_event='$nama', tanggal='$tgl', qr_mode='$mode' WHERE id='$id_event'");
+    $query = "UPDATE events SET 
+                nama_event='$nama', 
+                tanggal='$tgl', 
+                qr_mode='$mode', 
+                cert_font_size='$cert_size', 
+                cert_font_color='$cert_color' 
+                $file_update_query 
+              WHERE id='$id_event'";
+
+    mysqli_query($conn, $query);
 
     // 2. Loop Data Sesi (Update yang lama / Insert yang baru)
-    $sesi_id      = $_POST['sesi_id'];      // Array ID (Kalo kosong berarti baru)
-    $sesi_nama    = $_POST['sesi_nama'];    // Array Nama
-    $jam_mulai    = $_POST['jam_mulai'];    // Array Jam Mulai
-    $jam_selesai  = $_POST['jam_selesai'];  // Array Jam Selesai
+    $sesi_id = $_POST['sesi_id'];      // Array ID (Kalo kosong berarti baru)
+    $sesi_nama = $_POST['sesi_nama'];    // Array Nama
+    $jam_mulai = $_POST['jam_mulai'];    // Array Jam Mulai
+    $jam_selesai = $_POST['jam_selesai'];  // Array Jam Selesai
 
-    for($i=0; $i < count($sesi_nama); $i++){
-        if(!empty($sesi_nama[$i])){
-            $sid   = $sesi_id[$i];
-            $nm    = mysqli_real_escape_string($conn, $sesi_nama[$i]);
+    for ($i = 0; $i < count($sesi_nama); $i++) {
+        if (!empty($sesi_nama[$i])) {
+            $sid = $sesi_id[$i];
+            $nm = mysqli_real_escape_string($conn, $sesi_nama[$i]);
             $start = $jam_mulai[$i];
-            $end   = $jam_selesai[$i];
+            $end = $jam_selesai[$i];
 
-            if(!empty($sid)){
+            if (!empty($sid)) {
                 mysqli_query($conn, "UPDATE event_sessions SET nama_sesi='$nm', jam_mulai='$start', jam_selesai='$end' WHERE id='$sid'");
             } else {
                 mysqli_query($conn, "INSERT INTO event_sessions (event_id, nama_sesi, jam_mulai, jam_selesai) VALUES ('$id_event', '$nm', '$start', '$end')");
@@ -58,9 +97,9 @@ if(isset($_POST['update_event'])){
 
     mysqli_query($conn, "DELETE FROM event_registrations WHERE event_id='$id_event'");
 
-    if(isset($_POST['invited_users'])){
+    if (isset($_POST['invited_users'])) {
         $selected_users = $_POST['invited_users'];
-        foreach($selected_users as $uid){
+        foreach ($selected_users as $uid) {
             mysqli_query($conn, "INSERT INTO event_registrations (event_id, user_id, status) VALUES ('$id_event', '$uid', 'pending')");
         }
     }
@@ -71,11 +110,13 @@ if(isset($_POST['update_event'])){
 // --- AMBIL DATA EVENT UTAMA ---
 $q_event = mysqli_query($conn, "SELECT * FROM events WHERE id='$id_event'");
 $data = mysqli_fetch_assoc($q_event);
-if(!$data) die("Event tidak ditemukan.");
+if (!$data)
+    die("Event tidak ditemukan.");
 ?>
 
 <!DOCTYPE html>
 <html>
+
 <head>
     <title>Edit Event</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
@@ -88,15 +129,16 @@ if(!$data) die("Event tidak ditemukan.");
         }
     </style>
 </head>
+
 <body class="bg-light">
-<div class="container mt-5 mb-5" style="max-width: 800px;">
-    <div class="card shadow">
-        <div class="card-header bg-info text-white">
-            <h5 class="mb-0">Edit Event: <?= $data['nama_event'] ?></h5>
-        </div>
-        <div class="card-body">
-            <form method="POST">
-                <div class="row">
+    <div class="container mt-5 mb-5" style="max-width: 800px;">
+        <div class="card shadow">
+            <div class="card-header bg-info text-white">
+                <h5 class="mb-0">Edit Event: <?= $data['nama_event'] ?></h5>
+            </div>
+            <div class="card-body">
+                <form method="POST" enctype="multipart/form-data">
+                    <div class="row">
                     <div class="col-md-6 mb-3">
                         <label class="form-label fw-bold">Nama Event</label>
                         <input type="text" name="nama_event" class="form-control" value="<?= $data['nama_event'] ?>" required>
@@ -114,126 +156,168 @@ if(!$data) die("Event tidak ditemukan.");
                     </div>
                 </div>
 
-                <hr class="my-4">
-                
-                <h5 class="mb-3">Jadwal Sesi</h5>
-                <div class="alert alert-warning py-2 small">
-                    <i class="fa fa-info-circle"></i> Jika mengubah jam, pastikan tidak bertabrakan dengan sesi lain.
+                <h5 class="mt-3 border-bottom pb-2 text-info">Pengaturan Sertifikat</h5>
+                <div class="row">
+                     <div class="col-md-4 mb-3">
+                        <label class="fw-bold">Template (JPG/PNG)</label>
+                        <input type="file" name="cert_template" class="form-control" accept="image/*">
+                        <?php if(!empty($data['cert_template'])): ?>
+                            <small class="text-success"><i class="fa fa-check"></i> Sudah ada: <a href="<?= $data['cert_template'] ?>" target="_blank">Lihat</a></small>
+                        <?php else: ?>
+                            <small class="text-muted">Belum ada template.</small>
+                        <?php endif; ?>
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <label class="fw-bold">Font Nama (TTF/OTF)</label>
+                        <input type="file" name="cert_font" class="form-control" accept=".ttf,.otf">
+                         <?php if(!empty($data['cert_font'])): ?>
+                            <small class="text-success"><i class="fa fa-check"></i> Sudah ada custom font.</small>
+                        <?php else: ?>
+                            <small class="text-muted">Default: Arial/System.</small>
+                        <?php endif; ?>
+                    </div>
+                    <div class="col-md-2 mb-3">
+                        <label class="fw-bold">Ukuran Font</label>
+                        <input type="number" name="cert_font_size" class="form-control" value="<?= $data['cert_font_size'] ?? 30 ?>">
+                    </div>
+                     <div class="col-md-2 mb-3">
+                        <label class="fw-bold">Warna Font</label>
+                        <input type="color" name="cert_font_color" class="form-control form-control-color" value="<?= $data['cert_font_color'] ?? '#000000' ?>" title="Pilih warna font">
+                    </div>
                 </div>
-                
-                <table class="table table-bordered">
-                    <thead class="table-light">
-                        <tr>
-                            <th>Nama Sesi</th>
-                            <th>Jam Mulai</th>
-                            <th>Jam Selesai</th>
-                            <th width="50px">Aksi</th>
-                        </tr>
-                    </thead>
-                    <tbody id="sesiContainer">
-                        <?php 
-                        // Ambil Data Sesi yang ada
-                        $q_sesi = mysqli_query($conn, "SELECT * FROM event_sessions WHERE event_id='$id_event'");
-                        while($s = mysqli_fetch_assoc($q_sesi)): 
-                        ?>
-                        <tr>
-                            <input type="hidden" name="sesi_id[]" value="<?= $s['id'] ?>">
-                            
-                            <td><input type="text" name="sesi_nama[]" class="form-control" value="<?= $s['nama_sesi'] ?>" required></td>
-                            <td><input type="time" name="jam_mulai[]" class="form-control" value="<?= $s['jam_mulai'] ?>" required></td>
-                            <td><input type="time" name="jam_selesai[]" class="form-control" value="<?= $s['jam_selesai'] ?>" required></td>
-                            <td>
-                                <a href="edit_event.php?id=<?= $id_event ?>&hapus_sesi=<?= $s['id'] ?>" 
-                                   class="btn btn-danger btn-sm" 
-                                   onclick="return confirm('Yakin hapus sesi ini?')">X</a>
-                            </td>
-                        </tr>
-                        <?php endwhile; ?>
-                    </tbody>
-                </table>
-                
-                <button type="button" class="btn btn-success btn-sm mb-3" onclick="tambahSesi()">+ Tambah Sesi Baru</button>
 
-                <hr class="my-4">
+                    <hr class="my-4">
 
-                <h5 class="mb-3 text-primary">Undangan Peserta (RSVP)</h5>
-                <p class="text-muted small">Centang peserta yang akan diundang ke event ini.</p>
+                    <h5 class="mb-3">Jadwal Sesi</h5>
+                    <div class="alert alert-warning py-2 small">
+                        <i class="fa fa-info-circle"></i> Jika mengubah jam, pastikan tidak bertabrakan dengan sesi
+                        lain.
+                    </div>
 
-                <div class="card bg-light border-0">
-                    <div class="card-header bg-secondary text-white d-flex justify-content-between align-items-center">
-                        <span>Daftar User</span>
-                        <div class="form-check">
-                            <input class="form-check-input" type="checkbox" id="checkAll">
-                            <label class="form-check-label fw-bold text-white" for="checkAll" style="cursor:pointer">
-                                Pilih Semua
-                            </label>
+                    <table class="table table-bordered">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Nama Sesi</th>
+                                <th>Jam Mulai</th>
+                                <th>Jam Selesai</th>
+                                <th width="50px">Aksi</th>
+                            </tr>
+                        </thead>
+                        <tbody id="sesiContainer">
+                            <?php
+                            // Ambil Data Sesi yang ada
+                            $q_sesi = mysqli_query($conn, "SELECT * FROM event_sessions WHERE event_id='$id_event'");
+                            while ($s = mysqli_fetch_assoc($q_sesi)):
+                                ?>
+                                <tr>
+                                    <input type="hidden" name="sesi_id[]" value="<?= $s['id'] ?>">
+
+                                    <td><input type="text" name="sesi_nama[]" class="form-control"
+                                            value="<?= $s['nama_sesi'] ?>" required></td>
+                                    <td><input type="time" name="jam_mulai[]" class="form-control"
+                                            value="<?= $s['jam_mulai'] ?>" required></td>
+                                    <td><input type="time" name="jam_selesai[]" class="form-control"
+                                            value="<?= $s['jam_selesai'] ?>" required></td>
+                                    <td>
+                                        <a href="edit_event.php?id=<?= $id_event ?>&hapus_sesi=<?= $s['id'] ?>"
+                                            class="btn btn-danger btn-sm"
+                                            onclick="return confirm('Yakin hapus sesi ini?')">X</a>
+                                    </td>
+                                </tr>
+                            <?php endwhile; ?>
+                        </tbody>
+                    </table>
+
+                    <button type="button" class="btn btn-success btn-sm mb-3" onclick="tambahSesi()">+ Tambah Sesi
+                        Baru</button>
+
+                    <hr class="my-4">
+
+                    <h5 class="mb-3 text-primary">Undangan Peserta (RSVP)</h5>
+                    <p class="text-muted small">Centang peserta yang akan diundang ke event ini.</p>
+
+                    <div class="card bg-light border-0">
+                        <div
+                            class="card-header bg-secondary text-white d-flex justify-content-between align-items-center">
+                            <span>Daftar User</span>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="checkAll">
+                                <label class="form-check-label fw-bold text-white" for="checkAll"
+                                    style="cursor:pointer">
+                                    Pilih Semua
+                                </label>
+                            </div>
+                        </div>
+                        <div class="user-scroll-box p-0">
+                            <table class="table table-hover table-striped mb-0">
+                                <thead class="sticky-top bg-light">
+                                    <tr>
+                                        <th width="40" class="text-center">#</th>
+                                        <th>Nama Peserta</th>
+                                        <th>Lembaga</th>
+                                        <th>No HP</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <?php if (mysqli_num_rows($query_users) > 0): ?>
+                                        <?php while ($u = mysqli_fetch_assoc($query_users)): ?>
+                                            <tr>
+                                                <td class="text-center">
+                                                    <input class="form-check-input user-checkbox" type="checkbox"
+                                                        name="invited_users[]" value="<?= $u['id'] ?>" <?= in_array($u['id'], $invited_users) ? 'checked' : '' ?>>
+                                                </td>
+                                                <td><?= $u['nama'] ?></td>
+                                                <td class="small text-muted"><?= $u['lembaga'] ?></td>
+                                                <td class="small text-muted"><?= $u['nohp'] ?></td>
+                                            </tr>
+                                        <?php endwhile; ?>
+                                    <?php else: ?>
+                                        <tr>
+                                            <td colspan="4" class="text-center text-muted p-4">Belum ada data user.</td>
+                                        </tr>
+                                    <?php endif; ?>
+                                </tbody>
+                            </table>
+                        </div>
+                        <div class="card-footer text-muted small">
+                            * User yang dicentang akan melihat info event di dashboard mereka.
                         </div>
                     </div>
-                    <div class="user-scroll-box p-0">
-                        <table class="table table-hover table-striped mb-0">
-                            <thead class="sticky-top bg-light">
-                                <tr>
-                                    <th width="40" class="text-center">#</th>
-                                    <th>Nama Peserta</th>
-                                    <th>Lembaga</th>
-                                    <th>No HP</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <?php if(mysqli_num_rows($query_users) > 0): ?>
-                                    <?php while($u = mysqli_fetch_assoc($query_users)): ?>
-                                    <tr>
-                                        <td class="text-center">
-                                            <input class="form-check-input user-checkbox" type="checkbox" name="invited_users[]" value="<?= $u['id'] ?>" <?= in_array($u['id'], $invited_users) ? 'checked' : '' ?>>
-                                        </td>
-                                        <td><?= $u['nama'] ?></td>
-                                        <td class="small text-muted"><?= $u['lembaga'] ?></td>
-                                        <td class="small text-muted"><?= $u['nohp'] ?></td>
-                                    </tr>
-                                    <?php endwhile; ?>
-                                <?php else: ?>
-                                    <tr><td colspan="4" class="text-center text-muted p-4">Belum ada data user.</td></tr>
-                                <?php endif; ?>
-                            </tbody>
-                        </table>
-                    </div>
-                    <div class="card-footer text-muted small">
-                        * User yang dicentang akan melihat info event di dashboard mereka.
-                    </div>
-                </div>
 
-                <div class="d-grid gap-2 mt-4">
-                    <button type="submit" name="update_event" class="btn btn-primary btn-lg">Simpan Perubahan</button>
-                    <a href="dashboard_admin.php" class="btn btn-secondary">Batal</a>
-                </div>
-            </form>
+                    <div class="d-grid gap-2 mt-4">
+                        <button type="submit" name="update_event" class="btn btn-primary btn-lg">Simpan
+                            Perubahan</button>
+                        <a href="dashboard_admin.php" class="btn btn-secondary">Batal</a>
+                    </div>
+                </form>
+            </div>
         </div>
     </div>
-</div>
 
-<script>
-    function tambahSesi(){
-        // Menambah baris baru (ID Sesi dikosongkan value-nya)
-        var row = `<tr>
+    <script>
+        function tambahSesi() {
+            // Menambah baris baru (ID Sesi dikosongkan value-nya)
+            var row = `<tr>
             <input type="hidden" name="sesi_id[]" value=""> 
             <td><input type="text" name="sesi_nama[]" class="form-control" placeholder="Sesi Baru" required></td>
             <td><input type="time" name="jam_mulai[]" class="form-control" required></td>
             <td><input type="time" name="jam_selesai[]" class="form-control" required></td>
             <td><button type="button" class="btn btn-danger btn-sm" onclick="hapusBarisJS(this)">X</button></td>
         </tr>`;
-        document.getElementById('sesiContainer').insertAdjacentHTML('beforeend', row);
-    }
-
-    function hapusBarisJS(btn){
-        btn.closest('tr').remove();
-    }
-
-    document.getElementById('checkAll').addEventListener('change', function() {
-        var checkboxes = document.querySelectorAll('.user-checkbox');
-        for (var checkbox of checkboxes) {
-            checkbox.checked = this.checked;
+            document.getElementById('sesiContainer').insertAdjacentHTML('beforeend', row);
         }
-    });
-</script>
+
+        function hapusBarisJS(btn) {
+            btn.closest('tr').remove();
+        }
+
+        document.getElementById('checkAll').addEventListener('change', function () {
+            var checkboxes = document.querySelectorAll('.user-checkbox');
+            for (var checkbox of checkboxes) {
+                checkbox.checked = this.checked;
+            }
+        });
+    </script>
 </body>
+
 </html>
