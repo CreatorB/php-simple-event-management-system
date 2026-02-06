@@ -249,13 +249,13 @@ if ($active_session) {
                             <tr>
                                 <th class="ps-3">No</th>
                                 <th>Waktu</th>
-                                <th>Sesi</th>
+                                <th>Event & Sesi</th>
                             </tr>
                         </thead>
                         <tbody>
                             <?php
                             $no = 1;
-                            $q = mysqli_query($conn, "SELECT a.waktu_scan, e.nama_event, s.nama_sesi FROM attendance a JOIN events e ON a.event_id = e.id JOIN event_sessions s ON a.session_id = s.id WHERE a.user_id = '$uid' ORDER BY a.waktu_scan DESC LIMIT 10");
+                            $q = mysqli_query($conn, "SELECT a.waktu_scan, e.nama_event, s.nama_sesi FROM attendance a JOIN events e ON a.event_id = e.id LEFT JOIN event_sessions s ON a.session_id = s.id WHERE a.user_id = '$uid' ORDER BY a.waktu_scan DESC LIMIT 10");
                             if (mysqli_num_rows($q) > 0):
                                 while ($row = mysqli_fetch_assoc($q)): ?>
                                     <tr>
@@ -266,7 +266,11 @@ if ($active_session) {
                                                 class="text-muted"><?= date('d/m/Y', strtotime($row['waktu_scan'])) ?></small>
                                         </td>
                                         <td>
-                                            <span class="badge bg-success rounded-pill"><?= $row['nama_sesi'] ?></span>
+                                            <div class="text-primary fw-bold">
+                                                <?= $row['nama_event'] ?>
+                                            </div>
+                                            <span
+                                                class="badge bg-success rounded-pill"><?= $row['nama_sesi'] ?? 'Sesi Umum / Hapus' ?></span>
                                         </td>
                                     </tr>
                                 <?php endwhile;
