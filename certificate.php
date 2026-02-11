@@ -124,8 +124,11 @@ $user_name = $_SESSION['nama'];
                     
                     <label class="form-label fw-bold">Ukuran Font:</label>
                     <input type="range" id="input-size" class="form-range" min="10" max="100" value="<?= $font_size ?>">
+
+                    <label class="form-label fw-bold">Jarak Kata:</label>
+                    <input type="range" id="input-word-spacing" class="form-range" min="0" max="50" value="0">
                     
-                    <small class="text-muted d-block">Ubah nama atau geser slider untuk ukuran font.</small>
+                    <small class="text-muted d-block">Ubah nama, ukuran font, atau jarak kata sesuai keinginan.</small>
                 </div>
             </div>
 
@@ -158,6 +161,7 @@ $user_name = $_SESSION['nama'];
         const img = document.getElementById('cert-image');
         const inputName = document.getElementById('input-name');
     const inputSize = document.getElementById('input-size');
+    const inputWordSpacing = document.getElementById('input-word-spacing');
     const wrapper = document.getElementById('cert-wrapper');
 
     // Update Text Realtime
@@ -168,6 +172,11 @@ $user_name = $_SESSION['nama'];
     // Update Font Size Realtime
     inputSize.addEventListener('input', function(){
         dragName.style.fontSize = this.value + 'px';
+    });
+
+    // Update Word Spacing Realtime
+    inputWordSpacing.addEventListener('input', function(){
+        dragName.style.wordSpacing = this.value + 'px';
     });
 
         // Responsive Scaling Logic
