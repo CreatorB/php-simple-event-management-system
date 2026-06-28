@@ -1,3 +1,16 @@
+
+### Deprecated
+
+This repository is **deprecated** and is no longer actively developed.
+
+Development has moved to:
+
+[https://github.com/CreatorB/laravel-daurah](https://github.com/CreatorB/laravel-daurah)
+
+Please use the new repository for the latest updates and ongoing development.
+
+---
+
 # Simple Event Management System
 
 A comprehensive web-based application for managing events, participants, and attendance tracking using QR code technology. Perfect for conferences, seminars, workshops, training sessions, and any gatherings that require participant registration and attendance monitoring.
